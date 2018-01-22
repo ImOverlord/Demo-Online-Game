@@ -5,7 +5,7 @@
 ** online_draw.c
 */
 
-#include "include.h"
+#include "my_mmo.h"
 
 int width = 800;
 int height = 600;
@@ -179,8 +179,33 @@ void draw_object(sfRenderWindow *window, int x, int y)
 	sfSprite_destroy(sprite);
 }
 
+void draw_map(sfRenderWindow *window)
+{
+	sfTexture *texture;
+	sfSprite *sprite;
+	
+	texture = sfTexture_createFromFile("./ressources/map1.png", NULL);
+	sprite = sfSprite_create();
+	sfSprite_setTexture(sprite, texture, sfTrue);
+	sfRenderWindow_drawSprite(window, sprite, NULL);
+	sfTexture_destroy(texture);
+	sfSprite_destroy(sprite);
+}
+
+void focus(sfRenderWindow *window, int x, int y)
+{
+	sfView *camera;
+	sfVector2f center = {x, y};
+	sfFloatRect cam = {0, 0, width, height};
+
+	camera = sfView_createFromRect(cam);
+	sfView_setCenter(camera, center);
+	sfRenderWindow_setView(window, camera);
+}
+
 void draw_from_server(sfRenderWindow *window, char **data, char *user)
 {
+	draw_map(window);
 	for (int i = 0; data[i] != NULL; i++) {
 		int type = atoi(parse_(data[i], 0));
 		char *username = parse_(data[i], 1);
@@ -190,6 +215,9 @@ void draw_from_server(sfRenderWindow *window, char **data, char *user)
 		int x = atoi(x1);
 		int y = atoi(y1);
 		int dir = atoi(dir1);
+		if (strcmp(username, user) == 0) {
+			focus(window, x, y);
+		}
 		if (type == 1)
 			draw_player(window, username, x, y, dir);
 		if (type == 2)
@@ -197,44 +225,61 @@ void draw_from_server(sfRenderWindow *window, char **data, char *user)
 	}
 }
 
+int analyse_event(sfRenderWindow *window, sfEvent event, char *user)
+{
+	char *me = get_my(user);
+
+	if (sfRenderWindow_pollEvent(window, &event)) {
+		if (event.type == sfEvtClosed) {
+			sfRenderWindow_close(window);
+			printf("Close\n");
+			player_disconnect(user);
+			return (0);
+		}
+		if (sfKeyboard_isKeyPressed(sfKeyW)) {
+			send_move(user, "1");
+		}
+		if (sfKeyboard_isKeyPressed(sfKeyS)) {
+			send_move(user, "2");
+		}
+		if (sfKeyboard_isKeyPressed(sfKeyA)) {
+			send_move(user, "3");
+		}
+		if (sfKeyboard_isKeyPressed(sfKeyD)) {
+			send_move(user, "4");
+		}
+		if (sfKeyboard_isKeyPressed(sfKeySpace)) {
+			player_shoot(me);
+		}
+	}
+	return (0);
+}
+
 int draw_(char *user)
 {
 	printf("Game Started\n");
 	char **data = parse_data();
-	char *me;
 	sfVideoMode mode = {width, height, 32};
 	sfRenderWindow* window;
 	sfEvent event;
+	sfClock *clock;
+	sfTime time;
+	float seconds = 0.0;
 
+	clock = sfClock_create();
 	window = sfRenderWindow_create(mode, user, sfResize | sfClose, NULL);
+	sfRenderWindow_setFramerateLimit(window, 60);
 	while (sfRenderWindow_isOpen(window)) {
-		data = parse_data();
-		me = get_my(user);
-		if (sfRenderWindow_pollEvent(window, &event)) {
-			if (event.type == sfEvtClosed) {
-				player_disconnect(user);
-				sfRenderWindow_close(window);
-				return (0);
-			}
-			if (sfKeyboard_isKeyPressed(sfKeyW)) {
-				send_move(user, "1");
-			}
-			if (sfKeyboard_isKeyPressed(sfKeyS)) {
-				send_move(user, "2");
-			}
-			if (sfKeyboard_isKeyPressed(sfKeyA)) {
-				send_move(user, "3");
-			}
-			if (sfKeyboard_isKeyPressed(sfKeyD)) {
-				send_move(user, "4");
-			}
-			if (sfKeyboard_isKeyPressed(sfKeySpace)) {
-				player_shoot(me);
-			}
+		time = sfClock_getElapsedTime(clock);
+		seconds = time.microseconds / 1000000.0;
+		if (seconds > 0.01) {
+			data = parse_data();
+			analyse_event(window, event, user);
+			sfRenderWindow_clear(window, sfBlack);
+			draw_from_server(window, data, user);
+			sfRenderWindow_display(window);
+			sfClock_restart(clock);
 		}
-		sfRenderWindow_clear(window, sfBlack);
-		draw_from_server(window, data, user);
-		sfRenderWindow_display(window);
 	}
 	sfRenderWindow_destroy(window);
 	return (1);
