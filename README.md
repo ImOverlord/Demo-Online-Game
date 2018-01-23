@@ -5,9 +5,11 @@ Done:
   - Basic Mouvement Handling
   - Basic Shooting Handling
   - Basic Login
+  - User - Bullet Collision
+  - Game Clock
+  - Camera follows player
  
  To Do:
-  - Collosion Detection
+  - Collision Detection
   - Add Map
-  - Add game clock
   - Improve Code readabilty
