@@ -11,4 +11,4 @@ make {language}
 Run ./mmo
 
 You need to have the CSFML lib installed with all its components, the lib is called with -lc_graph_prog
-if this is the same for you change the Makfile
+If the lib not setup like this for you change the Makefile
