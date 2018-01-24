@@ -2,7 +2,7 @@
 ** EPITECH PROJECT, 2018
 ** include.h
 ** File description:
-** header file for the Demo
+** header file for the Demo for the AZERTY keyboard
 */
 
 #ifndef MY_MMO_H_
@@ -19,6 +19,10 @@
 #define width (800)
 #define height (600)
 #define pixel_buffer (4)
+#define keyboard_up (25)
+#define keyboard_down (18)
+#define keyboard_right (3)
+#define keyboard_left (16)
 void draw_username(sfRenderWindow *window, char *username, int x, int y);
 float get_rotation(int dir);
 void draw_player(sfRenderWindow *window, char *username, int x, int y, int dir);

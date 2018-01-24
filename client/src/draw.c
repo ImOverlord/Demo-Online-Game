@@ -7,103 +7,6 @@
 
 #include "my_mmo.h"
 
-int width = 800;
-int height = 600;
-int pixel_buffer = 4;
-
-int get_arg_nb(char *argv)
-{
-	int i = 0;
-	int counter = 0;
-
-	while (argv[i] != '\0') {
-		if (argv[i] == '\n') {
-			counter++;
-			i++;
-		} else {
-			i++;
-		}
-	}
-	return (counter);
-}
-
-char *set(char *argv, int old_i, int i)
-{
-	char *string = malloc((i - old_i + 1) * sizeof(char));
-	int j = 0;
-
-	for (int v = old_i; v < i; v++) {
-		string[j] = argv[v];
-		j++;
-	}
-	string[j] = 0;
-	return (string);
-}
-
-char **set_args(char *argv, int nb)
-{
-	char **args = malloc((nb + 1) * sizeof(*args));
-	int i = 0;
-	int old_i = i;
-	int counter = 0;
-
-	while (argv[i] != 0) {
-		if ((argv[i] == '\n')) {
-			args[counter] = strdup(set(argv, old_i, i));
-			counter++;
-			i++;
-			old_i = i;
-		} else
-			i++;
-	}
-	args[nb] = NULL;
-	return (args);
-}
-
-char **parse_data(void)
-{
-	char **body;
-	sfHttp *http;
-	sfHttpRequest *request;
-	sfHttpResponse *response;
-	sfTime timeout = sfSeconds(1);
-	char *in_highscore;
-
-	http = sfHttp_create();
-	sfHttp_setHost(http, "localhost:3000", 3000);
-	request = sfHttpRequest_create();
-	sfHttpRequest_setUri(request, "/map");
-	sfHttpRequest_setMethod(request, sfHttpGet);
-	response = sfHttp_sendRequest(http, request, timeout);
-	in_highscore = strdup(sfHttpResponse_getBody(response));
-	body = set_args(in_highscore, get_arg_nb(in_highscore));
-	return (body);
-}
-
-char *parse_(char *data, int a)
-{
-	char *string;
-	int count = 0;
-	int i = 0;
-	int old_i = 0;
-
-	while (data[i] != 0) {
-		if (data[i] == ':' && count == (a)) {
-			string = set(data, old_i, i);
-			i++;
-			old_i = i;
-			break;
-		} else if (data[i] == ':') {
-			count++;
-			old_i = i + 1;
-			i++;
-		} else {
-			i++;
-		}
-	}
-	return (string);
-}
-
 void draw_username(sfRenderWindow *window, char *username, int x, int y)
 {
 	sfText *text;
@@ -183,10 +86,12 @@ void draw_map(sfRenderWindow *window)
 {
 	sfTexture *texture;
 	sfSprite *sprite;
+	sfVector2f scale = {10, 10};
 	
 	texture = sfTexture_createFromFile("./ressources/map1.png", NULL);
 	sprite = sfSprite_create();
 	sfSprite_setTexture(sprite, texture, sfTrue);
+	sfSprite_setScale(sprite, scale);
 	sfRenderWindow_drawSprite(window, sprite, NULL);
 	sfTexture_destroy(texture);
 	sfSprite_destroy(sprite);
@@ -207,11 +112,11 @@ void draw_from_server(sfRenderWindow *window, char **data, char *user)
 {
 	draw_map(window);
 	for (int i = 0; data[i] != NULL; i++) {
-		int type = atoi(parse_(data[i], 0));
-		char *username = parse_(data[i], 1);
-		char *x1 = parse_(data[i], 2);
-		char *y1 = parse_(data[i], 3);
-		char *dir1 = parse_(data[i], 4);
+		int type = atoi(parse_server_data_n(data[i], 0));
+		char *username = parse_server_data_n(data[i], 1);
+		char *x1 = parse_server_data_n(data[i], 2);
+		char *y1 = parse_server_data_n(data[i], 3);
+		char *dir1 = parse_server_data_n(data[i], 4);
 		int x = atoi(x1);
 		int y = atoi(y1);
 		int dir = atoi(dir1);
@@ -231,21 +136,21 @@ int analyse_event(sfRenderWindow *window, sfEvent event, char *user)
 
 	if (sfRenderWindow_pollEvent(window, &event)) {
 		if (event.type == sfEvtClosed) {
-			sfRenderWindow_close(window);
 			printf("Close\n");
 			player_disconnect(user);
-			return (0);
+			sfRenderWindow_close(window);
+			return (1);
 		}
-		if (sfKeyboard_isKeyPressed(sfKeyW)) {
+		if (sfKeyboard_isKeyPressed(keyboard_up)) {
 			send_move(user, "1");
 		}
-		if (sfKeyboard_isKeyPressed(sfKeyS)) {
+		if (sfKeyboard_isKeyPressed(keyboard_down)) {
 			send_move(user, "2");
 		}
-		if (sfKeyboard_isKeyPressed(sfKeyA)) {
+		if (sfKeyboard_isKeyPressed(keyboard_left)) {
 			send_move(user, "3");
 		}
-		if (sfKeyboard_isKeyPressed(sfKeyD)) {
+		if (sfKeyboard_isKeyPressed(keyboard_right)) {
 			send_move(user, "4");
 		}
 		if (sfKeyboard_isKeyPressed(sfKeySpace)) {
@@ -258,7 +163,7 @@ int analyse_event(sfRenderWindow *window, sfEvent event, char *user)
 int draw_(char *user)
 {
 	printf("Game Started\n");
-	char **data = parse_data();
+	char **data;
 	sfVideoMode mode = {width, height, 32};
 	sfRenderWindow* window;
 	sfEvent event;
@@ -274,7 +179,8 @@ int draw_(char *user)
 		seconds = time.microseconds / 1000000.0;
 		if (seconds > 0.01) {
 			data = parse_data();
-			analyse_event(window, event, user);
+			if (analyse_event(window, event, user) == 1)
+				break;
 			sfRenderWindow_clear(window, sfBlack);
 			draw_from_server(window, data, user);
 			sfRenderWindow_display(window);

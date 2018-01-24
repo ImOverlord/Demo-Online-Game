@@ -12,12 +12,17 @@ var timers = require("timers");
 
 app.use(cors());
 app.use(myParser.urlencoded({extended : true}));
-app.set("port", process.env.PORT || 3000);
+app.set("port", process.env.PORT || 80);
 mongoose.connect('mongodb://localhost/online_game_alpha');
 
 var id = 0;
 var obj_id = 0;
-app.listen(app.get('port'), "0.0.0.0", function() {
+var map_x0 = 0;
+var map_y0 = 0;
+var map_xmax = 1056 * 10;
+var map_ymax = 1056 * 10;
+
+app.listen(3000, "0.0.0.0", function() {
 	console.log("Express Started");
 	User.find({}, function(err, users) {
 		if (err) throw err;
@@ -34,6 +39,10 @@ app.listen(app.get('port'), "0.0.0.0", function() {
 		}
 	})
 });
+
+app.get("/hello", function(req, res) {
+	res.send("Server Online!");
+})
 
 app.post("/register", function(req, res) {
 
@@ -145,11 +154,7 @@ app.post("/my", function(req, res) {
 	})
 })
 
-function check_outofbound(new_pos_x, new_pos_y) {
-	var map_x0 = 0;
-	var map_xmax = 1056;
-	var map_y0 = 0;
-	var map_ymax = 1056;
+function check_outofbound(new_pos_x, new_pos_y, direction, username) {
 	if (new_pos_x < map_x0) {
 		return (2);
 	}
@@ -192,18 +197,17 @@ app.post("/move", function(req, res) {
 			new_pos_x += 10;
 		}
 		//Check for collision
-		if (check_outofbound(new_pos_x, new_pos_y) == 1) {
+		if (check_outofbound(new_pos_x, new_pos_y,new_direction, username1) == 1) {
 			docs[0].position_x = new_pos_x;
 			docs[0].position_y = new_pos_y;
+			docs[0].direction = new_direction;
+			docs[0].save(docs[0], function(err, user) {
+				if (err) throw err;
+				res.send("1");
+			});
 		} else {
-			console.log("Out Of bound");
+			res.send("1");
 		}
-		docs[0].direction = new_direction;
-		docs[0].save(docs[0], function(error, user) {
-			if(error) return next(error);
-			
-			res.send("1")
-		});
 	});
 })
 
@@ -271,9 +275,9 @@ process.on('SIGINT', function() {
 
 function bullet_outofbound(object) {
 
-	if (object.position_x < 0 || object.position_x > 800) {
+	if (object.position_x < map_x0 || object.position_x > map_xmax) {
 		return (1);
-	} else if (object.position_y < 0 || object.position_y > 600) {
+	} else if (object.position_y < map_y0 || object.position_y > map_ymax) {
 		return (1);
 	} else {
 		return (0);
@@ -328,17 +332,17 @@ function check_kill(object) {
 		for (i in user) {
 			if (object.from != user[i].username && user[i].active == true) {
 				if (user[i].direction == 1 || user[i].direction == 2) { 
-					var player_height = 313; 
-					var player_width = 206; 
+					var player_height = 313/2; 
+					var player_width = 206/2; 
 				} else { 
-					var player_height = 206; 
-					var player_width = 313; 
-				} 
+					var player_height = 206/2; 
+					var player_width = 313/2; 
+				}
 				if (
-					user[i].position_x < object.position_x + object.width && 
-					user[i].position_x + player_width > object.position_x && 
-					user[i].position_y < object.position_y + object.height &&  
-					user[i].position_y + player_height > object.position_y 
+					user[i].position_x - player_width/2< object.position_x + 33 && 
+					user[i].position_x + player_width/2 > object.position_x && 
+					user[i].position_y - player_height/2 < object.position_y + 33 &&  
+					user[i].position_y + player_height/2 > object.position_y 
 				) {
 					console.log(user[i].username, " was hit");
 					user[i].position_x = 0; 
@@ -346,10 +350,10 @@ function check_kill(object) {
 					user[i].save(user[i], function(error, user) { 
 						if(error) throw err; 
 					});
-					// object.active = false;
-					// object.save(object, function(err, object) { 
-					// 	if (err) throw (err);
-					// }) 
+					object.active = false;
+					object.save(object, function(err, object) { 
+						if (err) throw (err);
+					}) 
 				}
 			}
 		}

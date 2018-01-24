@@ -1,0 +1,14 @@
+ONLINE TEST GAME
+
+This a test game to show Networking in CSFML with a NodeJS server
+
+How To Use:
+
+make {language}
+	-en: QWERTY keyboard
+	-fr: AZERTY keyboard
+
+Run ./mmo
+
+You need to have the CSFML lib installed with all its components, the lib is called with -lc_graph_prog
+if this is the same for you change the Makfile

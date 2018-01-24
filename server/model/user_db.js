@@ -10,6 +10,7 @@ var userSchema = new Schema({
 	position_y : Number,
 	active : Number,
 	direction : Number,
+	health: Number
 });
 
 
